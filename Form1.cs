@@ -107,8 +107,8 @@ namespace FiltradorDePlanillas
                     r.SaldoCredito = worksheet.Cells[row, 11].Value?.ToString().Trim();
                     r.SaldoDebito = worksheet.Cells[row, 12].Value?.ToString().Trim();
                     r.Diferencia = worksheet.Cells[row, 13].Value?.ToString().Trim();
-                    r.FechaPlanilla = worksheet.Cells[row, 14].Value?.ToString().Trim();
-                    r.FechaCierre = worksheet.Cells[row, 15].Value?.ToString().Trim();
+                    r.FechaPlanilla =  formatearFecha(worksheet.Cells[row, 14].Value?.ToString().Trim());
+                    r.FechaCierre = formatearFecha(worksheet.Cells[row, 15].Value?.ToString().Trim());
                     r.Observaciones = worksheet.Cells[row, 16].Value?.ToString().Trim();
                     r.Referencia = worksheet.Cells[row, 17].Value?.ToString().Trim();
                     
@@ -330,6 +330,46 @@ namespace FiltradorDePlanillas
             range.AutoFitColumns();
 
             await package.SaveAsync();
+        }
+
+        private String formatearFecha(String fecha)
+        {
+            String fechaCorrecta = "";
+            if (!String.IsNullOrEmpty(fecha))
+            {
+
+
+
+                try
+                {
+                    String[] words = fecha.Split(' ');
+                    //todo registro con una observacion que empiece con "Carga de Reparto", NO debe modificarse
+
+                    String soloLaFecha = words[0];
+
+                    String[] datosDeFecha = soloLaFecha.Split('/');
+
+                    String dia = datosDeFecha[1];
+                    String mes = datosDeFecha[0];
+                    String anio = datosDeFecha[2];
+
+                    fechaCorrecta = dia + "/" + mes + "/" + anio;
+
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine(fecha);
+                    Console.WriteLine("Sin fecha");
+
+                }
+            }
+
+            
+            
+
+
+            return fechaCorrecta;
+
         }
 
 

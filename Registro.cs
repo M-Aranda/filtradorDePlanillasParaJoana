@@ -27,12 +27,13 @@ namespace FiltradorDePlanillas
         private String fechaCierre;
         private String observaciones;
         private String referencia;
+        private String presenteEnMesAnterior;
 
         public Registro()
         {
         }
 
-        public Registro(string uen, string cd, string centroDeDistribucion, string fletero, string nombre, string camion, string saldoAnterior, string planilla, string valoresAEntregar, string valoresEEntregados, string saldoCredito, string saldoDebito, string diferencia, string fechaPlanilla, string fechaCierre, string observaciones, string referencia)
+        public Registro(string uen, string cd, string centroDeDistribucion, string fletero, string nombre, string camion, string saldoAnterior, string planilla, string valoresAEntregar, string valoresEEntregados, string saldoCredito, string saldoDebito, string diferencia, string fechaPlanilla, string fechaCierre, string observaciones, string referencia, string presenteEnMesAnterior)
         {
             this.Uen = uen;
             this.Cd = cd;
@@ -51,6 +52,7 @@ namespace FiltradorDePlanillas
             this.FechaCierre = fechaCierre;
             this.Observaciones = observaciones;
             this.Referencia = referencia;
+            this.PresenteEnMesAnterior = presenteEnMesAnterior;
         }
 
         public string Uen { get => uen; set => uen = value; }
@@ -70,5 +72,6 @@ namespace FiltradorDePlanillas
         public string FechaCierre { get => fechaCierre; set => fechaCierre = value; }
         public string Observaciones { get => observaciones; set => observaciones = value; }
         public string Referencia { get => referencia; set => referencia = value; }
+        public string PresenteEnMesAnterior { get => presenteEnMesAnterior; set => presenteEnMesAnterior = value; }
     }
 }

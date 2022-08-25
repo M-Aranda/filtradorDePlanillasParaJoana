@@ -6,6 +6,8 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -54,19 +56,101 @@ namespace FiltradorDePlanillas
             List<Registro> registros = leerExcelDePlanillasDeLaCCU(sFileName);
 
 
-            string localfolder = ApplicationData.Current.LocalFolder.Path;
-            var array = localfolder.Split('\\');
-            var username = array[2];
-            string downloads = @"C:\Users\" + username + @"\Downloads";
+            if (registros.Count>0)
+            {
+                string localfolder = ApplicationData.Current.LocalFolder.Path;
+                var array = localfolder.Split('\\');
+                var username = array[2];
+                string downloads = @"C:\Users\" + username + @"\Downloads";
 
 
-            var archivo = new FileInfo(downloads + @"\RegistrosFiltrados.xlsx");
+                var archivo = new FileInfo(downloads + @"\RegistrosFiltrados.xlsx");
 
-            SaveExcelFileRegistros(registros, archivo);
+                SaveExcelFileRegistros(registros, archivo);
 
-            MessageBox.Show("Archivo Excel filtrado, creado en carpeta de descargas!");
+                MessageBox.Show("Archivo Excel filtrado, creado en carpeta de descargas!");
+            }
+            else
+            {
+                MessageBox.Show("Archivo Excel cargado no contiene duplicados (no se crea ningún archivo)");
+            }
 
 
+          
+          
+            
+
+        }
+
+        Boolean confirmarPresenciaDePlanillaEnBDDeIntranet(String numeroDePlanilla, String mes, String anio)
+        {
+            List<String> listadoDePlanillas = new List<String>();
+            string URI = "https://intranet.cargopacifico.cl/planillas_WS.php";
+
+
+            if (mes == "01")
+            {
+                mes = "12";
+                anio = (int.Parse(anio)-1).ToString();
+            }
+            else
+            {
+                mes = (int.Parse(mes)-1).ToString();
+            }
+
+         
+
+            string myParameters = "planilla=" + numeroDePlanilla+"&mes="+mes+"&anio="+anio;
+
+            
+
+            Boolean planillaPresenteEnIntranet = false;
+
+            using (WebClient wc = new System.Net.WebClient())
+            {
+                wc.Headers[HttpRequestHeader.ContentType] = "application/x-www-form-urlencoded";
+                string HtmlResult = wc.UploadString(URI, myParameters);
+
+               // Console.WriteLine(HtmlResult);
+
+
+                String[] datosPartidos = HtmlResult.Split(' ');
+
+                List<String> listado = new List<String>();
+
+                foreach (var item in datosPartidos)
+                {
+                    listado.Add(item);
+                }
+
+                foreach (var item in datosPartidos)
+                {
+                    Console.WriteLine(item);
+                }
+
+                      
+
+                
+   
+
+            }
+
+
+            return planillaPresenteEnIntranet;
+        }
+
+        string ReadResponseFromUrl(string url)
+        {
+            var httpClientHandler = new HttpClientHandler();
+            var httpClient = new HttpClient(httpClientHandler)
+            {
+                BaseAddress = new Uri(url)
+            };
+            using (var response = httpClient.GetAsync(url))
+            {
+                string responseBody = response.Result.Content.ReadAsStringAsync().Result;
+                return responseBody;
+            }
         }
 
 
@@ -76,9 +160,8 @@ namespace FiltradorDePlanillas
             List<Registro> registros = new List<Registro>();
 
             List<String> planillas = new List<String>();
-            
-            List<Registro> registrosDuplicados = new List<Registro>();
 
+            Boolean hayPlanillasDuplicadas = false;
 
 
             FileInfo existingFile = new FileInfo(filePath);
@@ -107,11 +190,11 @@ namespace FiltradorDePlanillas
                     r.SaldoCredito = worksheet.Cells[row, 11].Value?.ToString().Trim();
                     r.SaldoDebito = worksheet.Cells[row, 12].Value?.ToString().Trim();
                     r.Diferencia = worksheet.Cells[row, 13].Value?.ToString().Trim();
-                    r.FechaPlanilla =  formatearFecha(worksheet.Cells[row, 14].Value?.ToString().Trim());
+                    r.FechaPlanilla = formatearFecha(worksheet.Cells[row, 14].Value?.ToString().Trim());
                     r.FechaCierre = formatearFecha(worksheet.Cells[row, 15].Value?.ToString().Trim());
                     r.Observaciones = worksheet.Cells[row, 16].Value?.ToString().Trim();
                     r.Referencia = worksheet.Cells[row, 17].Value?.ToString().Trim();
-                    
+
                     registros.Add(r);
 
                 }
@@ -135,13 +218,13 @@ namespace FiltradorDePlanillas
                     int instanciasDeUnaPlanilla = 0;
                     foreach (var r in registros)
                     {
-                        if (p==r.Planilla)
+                        if (p == r.Planilla)
                         {
                             instanciasDeUnaPlanilla++;
                         }
                     }
 
-                    if (instanciasDeUnaPlanilla>1 || p== "Promae sin Dato" || p== "Promae sin Datos")
+                    if (instanciasDeUnaPlanilla > 1 || p == "Promae sin Dato" || p == "Promae sin Datos")
                     {
                         planillasRepetidas.Add(p);
                     }
@@ -149,169 +232,220 @@ namespace FiltradorDePlanillas
                     {
                         planillasUnicas.Add(p);
                     }
-                   
+
+                }
+
+                if (planillasRepetidas.Count > 0)
+                {
+                    Console.WriteLine("Hay planillas duplicadas");
+                    hayPlanillasDuplicadas = true;
+
+                }
+                else
+                {
+                    Console.WriteLine("No hay planillas duplicadas");
+                    hayPlanillasDuplicadas = false;
                 }
 
 
-                List<Registro> registrosAModificar = new List<Registro>();
-                List<Registro> registrosAMantener = new List<Registro>();
 
 
-                foreach (var r in registros)
-                {
+                    List<Registro> registrosAModificar = new List<Registro>();
+                    List<Registro> registrosAMantener = new List<Registro>();
 
-                    foreach (var pr in planillasRepetidas)
+
+                    foreach (var r in registros)
                     {
-                        if (pr==r.Planilla)
+
+                        foreach (var pr in planillasRepetidas)
                         {
-                            registrosAModificar.Add(r);
+                            if (pr == r.Planilla)
+                            {
+                                registrosAModificar.Add(r);
+                            }
                         }
                     }
-                }
 
 
 
-                foreach (var r in registros)
-                {
-
-                    foreach (var pr in planillasUnicas)
+                    foreach (var r in registros)
                     {
-                        if (pr == r.Planilla)
+
+                        foreach (var pr in planillasUnicas)
                         {
-                            registrosAMantener.Add(r);
+                            if (pr == r.Planilla)
+                            {
+                                registrosAMantener.Add(r);
+                            }
                         }
                     }
-                }
 
 
-                //ahora que ambas listas están separadas, tomar la lista de registros a modificar y quitar cargas de Reparto
-                List<Registro> registrosConCargaDeRepartoEnLaObservacion = new List<Registro>();
-                List<Registro> registrosSinCargaDeRepartoEnLaObservacion = new List<Registro>();
-
-
+                    //ahora que ambas listas están separadas, tomar la lista de registros a modificar y quitar cargas de Reparto
+                    List<Registro> registrosConCargaDeRepartoEnLaObservacion = new List<Registro>();
+                    List<Registro> registrosSinCargaDeRepartoEnLaObservacion = new List<Registro>();
 
 
 
-
-
-                foreach (var r in registrosAModificar)
-                {
-                    String observacion = r.Observaciones;
-
-                    if (observacion != null)
+                    foreach (var r in registrosAModificar)
                     {
+                        String observacion = r.Observaciones;
 
-                        string[] words = observacion.Split(':');
-                        //todo registro con una observacion que empiece con "Carga de Reparto", NO debe modificarse
-                        if (words[0] != "Carga de Reparto")
+                        if (observacion != null)
                         {
-                            registrosSinCargaDeRepartoEnLaObservacion.Add(r);
-                        }
-                        else
-                        {
-                            registrosConCargaDeRepartoEnLaObservacion.Add(r);
+
+                            string[] words = observacion.Split(':');
+                            //todo registro con una observacion que empiece con "Carga de Reparto", NO debe modificarse
+                            if (words[0] != "Carga de Reparto")
+                            {
+                                registrosSinCargaDeRepartoEnLaObservacion.Add(r);
+                            }
+                            else
+                            {
+                                registrosConCargaDeRepartoEnLaObservacion.Add(r);
+                            }
+
                         }
 
                     }
 
-                }
-
-                //modificar número de planilla de registros SIN carga de reparto
+                    //modificar número de planilla de registros SIN carga de reparto
 
 
 
-                registros = new List<Registro>();
+                    registros = new List<Registro>();
 
-                //modificar numero de planilla y agregar a listado (planillas duplicadas, sin carga de reparto)
-
-
-                string mesActual = DateTime.Now.Month.ToString();
-                string anioActual = DateTime.Now.Year.ToString();
-
-                switch (mesActual)
-                {
-                    case "1":
-                        mesActual = "01";
-                        break;
-                    case "2":
-                        mesActual = "02";
-                        break;
-                    case "3":
-                        mesActual = "03";
-                        break;
-                    case "4":
-                        mesActual = "04";
-                        break;
-                    case "5":
-                        mesActual = "05";
-                        break;
-                    case "6":
-                        mesActual = "06";
-                        break;
-                    case "7":
-                        mesActual = "07";
-                        break;
-                    case "8":
-                        mesActual = "08";
-                        break;
-                    case "9":
-                        mesActual = "09";
-                        break;
-                    default:
-                        break;
-                }
+                    //modificar numero de planilla y agregar a listado (planillas duplicadas, sin carga de reparto)
 
 
+                    string mesActual = DateTime.Now.Month.ToString();
+                    string anioActual = DateTime.Now.Year.ToString();
 
-                int numeroDeRegistro = 1;
-
-                foreach (var item in registrosSinCargaDeRepartoEnLaObservacion)
-                {
-                    String numeroDeRegistroComoString= numeroDeRegistro.ToString();
-
-                    switch (numeroDeRegistroComoString.Length)
+                    switch (mesActual)
                     {
-                        case 1:
-                            numeroDeRegistroComoString = "000" + numeroDeRegistroComoString;
+                        case "1":
+                            mesActual = "01";
                             break;
-                        case 2:
-                            numeroDeRegistroComoString = "00" + numeroDeRegistroComoString;
+                        case "2":
+                            mesActual = "02";
                             break;
-                        case 3:
-                            numeroDeRegistroComoString = "0" + numeroDeRegistroComoString;
+                        case "3":
+                            mesActual = "03";
                             break;
-                        case 4:
-                            //no hacer nada
+                        case "4":
+                            mesActual = "04";
+                            break;
+                        case "5":
+                            mesActual = "05";
+                            break;
+                        case "6":
+                            mesActual = "06";
+                            break;
+                        case "7":
+                            mesActual = "07";
+                            break;
+                        case "8":
+                            mesActual = "08";
+                            break;
+                        case "9":
+                            mesActual = "09";
                             break;
                         default:
                             break;
-
                     }
 
-                    item.Planilla = anioActual+mesActual+ numeroDeRegistroComoString;
-                    registros.Add(item);
-                    numeroDeRegistro++;
-                }
 
-                //planillas duplicadas que tengan carga de reparto en la observacion
-                foreach (var item in registrosConCargaDeRepartoEnLaObservacion)
-                {
-                    registros.Add(item);
-                }
 
-                //planillas unicas que no deben ser modificadas
-                foreach (var item in registrosAMantener)
-                {
-                    if (item.Planilla!= "Planilla")
+                    int numeroDeRegistro = 1;
+
+                    foreach (var item in registrosSinCargaDeRepartoEnLaObservacion)
+                    {
+                        String numeroDeRegistroComoString = numeroDeRegistro.ToString();
+
+                        switch (numeroDeRegistroComoString.Length)
+                        {
+                            case 1:
+                                numeroDeRegistroComoString = "000" + numeroDeRegistroComoString;
+                                break;
+                            case 2:
+                                numeroDeRegistroComoString = "00" + numeroDeRegistroComoString;
+                                break;
+                            case 3:
+                                numeroDeRegistroComoString = "0" + numeroDeRegistroComoString;
+                                break;
+                            case 4:
+                                //no hacer nada
+                                break;
+                            default:
+                                break;
+
+                        }
+
+                        item.Planilla = anioActual + mesActual + numeroDeRegistroComoString;
+                        registros.Add(item);
+                        numeroDeRegistro++;
+                    }
+
+                    //planillas duplicadas que tengan carga de reparto en la observacion
+                    foreach (var item in registrosConCargaDeRepartoEnLaObservacion)
                     {
                         registros.Add(item);
                     }
-                    
-                }
+
+                    //planillas unicas que no deben ser modificadas
+                    foreach (var item in registrosAMantener)
+                    {
+                        if (item.Planilla != "Planilla")
+                        {
+                            registros.Add(item);
+                        }
+
+                    }
 
 
 
             }
+
+            if (!hayPlanillasDuplicadas)
+            {
+                registros = new List<Registro>(); 
+            }
+
+
+            confirmarPresenciaDePlanillaEnBDDeIntranet("3333", "08","2022");
+            
+            //foreach (var item in registros)
+            //{
+
+            //    try
+            //    {
+            //        String[] datosDeFecha = item.FechaPlanilla.Split('/');
+                    
+
+            //        String dia = datosDeFecha[1];
+            //        String mes = datosDeFecha[0];
+            //        String anio = datosDeFecha[2];
+
+
+            //        if (confirmarPresenciaDePlanillaEnBDDeIntranet(item.Planilla, mes, anio))
+            //        {
+            //            //se ingresó en un mes anterior
+            //            item.PresenteEnMesAnterior = "Sí";
+            //        }
+            //        else
+            //        {
+            //            item.PresenteEnMesAnterior = "No";
+            //        }
+
+
+            //    }
+            //    catch (Exception)
+            //    {
+
+
+            //    }
+
+            //}
 
             return registros;
 
@@ -337,9 +471,6 @@ namespace FiltradorDePlanillas
             String fechaCorrecta = "";
             if (!String.IsNullOrEmpty(fecha))
             {
-
-
-
                 try
                 {
                     String[] words = fecha.Split(' ');
@@ -363,9 +494,6 @@ namespace FiltradorDePlanillas
 
                 }
             }
-
-            
-            
 
 
             return fechaCorrecta;
